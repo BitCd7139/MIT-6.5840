@@ -2,6 +2,8 @@
 
 ### 声明：应课程要求，本项目的代码不会公开至GitHub等平台，仅提交README.md提供实验思路。
 
+如果有需要可以联系我获取代码: issue或者邮箱均可。
+
 ## Lab1: MapReduce
 
 <details>
@@ -143,6 +145,36 @@ Worker中的实现注意不要超时，尤其注意**减少随机的和不必要
   - 如果当前任期大于请求的任期，拒绝投票
   - 等于部分可以放到2B后面处理，这个是真正的难点。
 - 多轮实验的脚本可以在找到，具体用法如下：![batch_test.png](assets/batch_test.png)
-- 先睡觉了，明天再写。
 
+### Day4:
+- 不要在代码中使用任何全局变量，全局变量的访问几乎一定会导致data race
+- 包装锁提供调试信息，方便定位问题
+```Raft.go
+func (rf *Raft) unlock(reason ...string) {
+	r := "unspecified"
+	if len(reason) > 0 {
+		r = reason[0] // 取第一个作为原因
+	}
+	
+    DPrintf("[%d]-Term(%d)-[%v]: 释放锁 (%s)\n", rf.me, rf.currentTerm, rf.State, r)
+	rf.mu.Unlock()
+	}
+```
+- 心跳检测是AppendEntries()的一部分，Entries 字段为空的 AppendEntries 是心跳消息。所以格式形如：
+```Raft.go
+type AppendEntriesArgs struct {
+    Term         int         // 领导者的任期
+    LeaderId     int         // 领导者 ID，以便 Follower 重定向客户端请求
+    PrevLogIndex int         // (2A可先不填)
+    PrevLogTerm  int         // (2A可先不填)
+    Entries      []LogEntry  // 日志
+    LeaderCommit int         // (2A可先不填)
+}
+
+type AppendEntriesReply struct {
+    Term    int  // 当前任期，供领导者更新自己
+    Success bool // 如果 Follower 包含匹配 PrevLogIndex 和 PrevLogTerm 的条目则为真
+}
+```
+目前解除了竞争，但极少数情况Failed.
 </details>
