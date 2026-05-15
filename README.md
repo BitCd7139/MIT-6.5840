@@ -7,7 +7,7 @@
 ## Lab1: MapReduce
 
 <details>
-<summary>点击展开/收起 Lab 1 实现思路（可能需配合实验手册查看）</summary>
+<summary>点击展开/收起 Lab 1 实现记录（可能需配合实验手册查看）</summary>
 
 MapReduce是一种分布式批处理框架。其将任务分为Map和Reduce两个阶段：
 - Map: 将输入数据分成小块，对每块数据进行处理
@@ -130,7 +130,7 @@ Worker中的实现注意不要超时，尤其注意**减少随机的和不必要
 ## Lab2: Raft
 
 <details>
-<summary>点击展开/收起 Lab 2 实现思路（可能需配合实验手册查看）</summary>
+<summary>点击展开/收起 Lab 2A: Leader选举 实现记录（以下均可能需配合实验手册查看）</summary>
 
 ### Day3:
 
@@ -177,4 +177,35 @@ type AppendEntriesReply struct {
 }
 ```
 目前解除了竞争，但极少数情况Failed.
+
+### Day5:
+- 先前的代码忽略了2A的两种情况：
+  1. 如果候选人收到的投票数超过半数，成为领导者，这个动作是必须立即执行的，而不应该放在ticker循环中检测。
+  2. 心跳发送后有概率遇到一个任期高于自己的Leader，导致自己转换为Follower。这个动作导致我们需要为RPC调用提供一层wrapper，在RPC调用失败时检查是否需要转换身份。具体方式如下：
+```raft.go
+go func(server int) {
+			rf.mu.Lock()
+			args := AppendEntriesArgs{
+				Term:     rf.currentTerm,
+				LeaderId: rf.me,
+			}
+			rf.mu.Unlock()
+			reply := AppendEntriesReply{}
+
+			if rf.sendAppendEntries(server, &args, &reply) == false {
+				rf.mu.Lock()
+				defer rf.mu.Unlock()
+				if reply.Term > rf.currentTerm {
+					rf.State = Follower
+					rf.currentTerm = reply.Term
+				}
+			}
+		}(i)
+```
+- 修改后目前没有问题，等到2B实验后继续调试。
+![2A_test.png](assets/2A_test_pass.png)
+</details>
+
+<details>
+<summary>点击展开/收起 Lab 2B: 同步日志 实现记录 </summary>
 </details>
